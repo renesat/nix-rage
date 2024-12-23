@@ -121,7 +121,13 @@ Contributions are welcome! Feel free to open issues or submit pull requests on [
 
 ## Related software
 
+You might also be interested in:
 
+- [git-crypt](https://github.com/AGWA/git-crypt)
+- [git-agecrypt](https://github.com/vlaci/git-agecrypt)
+- [agenix](https://github.com/ryantm/agenix)
+- [sops-nix](https://github.com/Mic92/sops-nix)
+- [agenix-rekey](https://github.com/oddlama/agenix-rekey)
 
 ## License
 
