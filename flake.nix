@@ -60,6 +60,15 @@
             clang-format.enable = true;
             alejandra.enable = true;
             taplo.enable = true;
+            yamlfmt = {
+              enable = true;
+              settings = {
+                formatter = {
+                  include_document_start = true;
+                  pad_line_comments = 2;
+                };
+              };
+            };
           };
         };
 
@@ -68,6 +77,7 @@
             rust.check.cargoDeps = pkgs.rustPlatform.importCargoLock {lockFile = ./Cargo.lock;};
           };
           hooks = {
+            yamllint.enable = true;
             treefmt = {
               enable = true;
               package = config.treefmt.build.wrapper;
