@@ -35,7 +35,7 @@ Nix Flake example:
 {
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
-    nix-rage.url = "github:nixos/renesat/nix-rage";
+    nix-rage.url = "github:renesat/nix-rage";
     nix-rage.inputs.nixpkgs.follows = "nixpkgs";
     #...
   };
@@ -47,9 +47,9 @@ Nix Flake example:
         modules = [
           {
             nix.extraOptions = let
-              nix-rage = inputs.nix-rage.packages."x86_64-linux".default;
+              nix-rage-package = nix-rage.packages."x86_64-linux".default;
             in ''
-            plugin-files = ${nix-rage}/lib/libnix_doc_plugin.so
+            plugin-files = ${nix-rage-package}/lib/libnix_rage.so
             '';
           }
           #...
