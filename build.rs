@@ -44,7 +44,7 @@ fn main() {
         .file("plugin.cpp")
         .cpp(true)
         .opt_level(2)
-        // .shared_flag(true)
+        .shared_flag(true)
         .std("c++20")
         .add_pkg_config(nix_expr)
         .add_pkg_config(nix_store)
