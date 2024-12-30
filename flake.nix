@@ -86,9 +86,7 @@
               enable = true;
               packageOverrides.cargo = toolchain;
               packageOverrides.clippy = toolchain;
-              extraPackages =
-                self'.packages.default.buildInputs
-                ++ self'.packages.default.nativeBuildInputs;
+              extraPackages = self'.packages.default.buildInputs ++ self'.packages.default.nativeBuildInputs;
             };
 
             deadnix = {
@@ -103,6 +101,38 @@
             };
             nil.enable = true;
             ripsecrets.enable = true;
+          };
+        };
+
+        checks = {
+          testPlugin = pkgs.testers.runNixOSTest {
+            name = "testPlugin";
+            nodes.machine1 = {
+              nix.extraOptions = ''
+                plugin-files = ${self'.packages.default}/lib/libnix_rage.so
+                experimental-features = nix-command
+              '';
+            };
+            testScript = ''
+              machine1.start()
+              machine1.execute("${pkgs.age}/bin/age-keygen -o /tmp/key")
+
+              # Test `importAge`
+              machine1.execute(
+                "echo '{ a = \"SECRET\";}' | ${pkgs.age}/bin/age -e -i /tmp/key > /tmp/data.age"
+              )
+              assert machine1.execute(
+                "nix eval --raw --expr '(builtins.importAge [ /tmp/key ] /tmp/data.age).a'"
+              )[1] == "SECRET", "Import file error"
+
+              # Test `readAgeFile`
+              machine1.execute(
+                "echo 'SECRET' | ${pkgs.age}/bin/age -e -i /tmp/key > /tmp/data.age"
+              )
+              assert machine1.execute(
+                "nix eval --raw --expr 'builtins.readAgeFile [ /tmp/key ] /tmp/data.age'"
+              )[1].strip() == "SECRET", "Read file error"
+            '';
           };
         };
 
