@@ -118,6 +118,7 @@
             pkgs.just
             pkgs.cargo-watch
             pkgs.nix-output-monitor
+            config.treefmt.build.wrapper
 
             # Deps
             self'.packages.default.buildInputs
