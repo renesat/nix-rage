@@ -4,6 +4,8 @@ version = "0.1.0"
 description = "Hide personal data with Nix"
 edition = "2021"
 license = "MIT"
+readme = "README.md"
+repository = "https://github.com/renesat/nix-rage"
 
 [lib]
 crate-type = ["cdylib"]
