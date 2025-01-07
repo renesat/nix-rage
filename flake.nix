@@ -95,6 +95,15 @@
               pass_filenames = false;
               entry = lib.getExe pkgs.cargo-machete;
             };
+            zizmor = {
+              name = "zizmor";
+              description = "Find security issues in GitHub Actions CI/CD setups";
+              language = "python";
+              types = ["yaml"];
+              files = "(\.github/workflows/.*)|(action\.ya?ml)$";
+              require_serial = true;
+              entry = lib.getExe pkgs.zizmor;
+            };
             deadnix = {
               enable = true;
               args = ["--edit"];
