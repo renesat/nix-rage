@@ -90,7 +90,11 @@
                 self'.packages.default.buildInputs
                 ++ self'.packages.default.nativeBuildInputs;
             };
-
+            cargo-machete = {
+              enable = true;
+              pass_filenames = false;
+              entry = lib.getExe pkgs.cargo-machete;
+            };
             deadnix = {
               enable = true;
               args = ["--edit"];
