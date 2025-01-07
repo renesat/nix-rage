@@ -3,13 +3,13 @@ name: "Check"
 on:  # yamllint disable-line rule:truthy
   pull_request:
   push:
-permissions:
-  contents: write
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
       - name: Install Nix

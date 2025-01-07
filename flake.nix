@@ -92,6 +92,9 @@
             };
             cargo-machete = {
               enable = true;
+              name = "cargo-machete";
+              description = "Remove unused Rust dependencies with this one weird trick!";
+              language = "rust";
               pass_filenames = false;
               entry = lib.getExe pkgs.cargo-machete;
             };
