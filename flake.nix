@@ -119,6 +119,7 @@
             pkgs.cargo-watch
             pkgs.nix-output-monitor
             config.treefmt.build.wrapper
+            pkgs.git-cliff
 
             # Deps
             self'.packages.default.buildInputs
