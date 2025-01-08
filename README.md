@@ -98,7 +98,7 @@ Now we can use this file in our config:
 ```nix
 {...}:
 let
-  secrets = builtins.importAge [ ./secret-key ] ./secret.nix.age
+  secrets = builtins.importAge [ ./secret-key ] ./secret.nix.age {}
 in {
   some.config.parameters.email = secrets.mySecretEmail;
 }
@@ -109,7 +109,7 @@ Also, you can read other files:
 ```nix
 {...}:
 let
-  secretConfig = builtins.readAgeFile [ ./secret-key ] ./secret.toml.age
+  secretConfig = builtins.readAgeFile [ ./secret-key ] ./secret.toml.age {}
 in {
   #...
 }
