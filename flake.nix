@@ -7,10 +7,7 @@
       url = "github:nix-community/fenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    naersk = {
-      url = "github:nix-community/naersk";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    crane.url = "github:ipetkov/crane";
     pre-commit-hooks = {
       url = "github:cachix/pre-commit-hooks.nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -43,6 +40,21 @@
           "rustc"
           "rustfmt"
         ];
+        craneLib =
+          (inputs.crane.mkLib pkgs).overrideToolchain toolchain;
+        commonArgs = {
+          src = lib.cleanSourceWith {
+            src = lib.cleanSource ./.;
+            filter = name: type: (craneLib.filterCargoSources name type) || (lib.hasSuffix ".cpp" name);
+          };
+          nativeBuildInputs = [pkgs.pkg-config];
+          buildInputs = [
+            pkgs.nix
+            pkgs.boost
+          ];
+          strictDeps = true;
+        };
+        cargoArtifacts = craneLib.buildDepsOnly commonArgs;
       in {
         _module.args.pkgs = import inputs.nixpkgs {
           inherit system;
@@ -122,10 +134,8 @@
           };
         };
 
-        devShells.default = pkgs.mkShell {
+        devShells.default = craneLib.devShell {
           packages = [
-            toolchain
-            pkgs.rust-analyzer
             pkgs.bacon
             pkgs.just
             pkgs.cargo-watch
@@ -140,22 +150,14 @@
           shellHook = config.pre-commit.installationScript;
         };
 
-        packages.default =
-          (inputs.naersk.lib.${system}.override {
-            cargo = toolchain;
-            rustc = toolchain;
-          })
-          .buildPackage
-          {
-            src = ./.;
-            copyLibs = true;
-            copyBins = false;
-            nativeBuildInputs = [pkgs.pkg-config];
-            buildInputs = [
-              pkgs.nix
-              pkgs.boost
-            ];
-          };
+        packages = {
+          nix-rage = craneLib.buildPackage (commonArgs
+            // {
+              inherit cargoArtifacts;
+              doCheck = false;
+            });
+          default = self'.packages.nix-rage;
+        };
       };
     };
 }
