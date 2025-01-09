@@ -67,7 +67,6 @@
           programs = {
             rustfmt = {
               enable = true;
-              package = toolchain;
             };
             clang-format.enable = true;
             alejandra.enable = true;
