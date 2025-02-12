@@ -40,7 +40,7 @@ Nix Flake example:
     #...
   };
 
-  outputs = {self, nixpkgs, nix-rage, ..}: {
+  outputs = { self, nixpkgs, nix-rage, ... }: {
     nixosConfigurations = {
       myhostname = nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
@@ -49,7 +49,7 @@ Nix Flake example:
             nix.extraOptions = let
               nix-rage-package = nix-rage.packages."x86_64-linux".default;
             in ''
-            plugin-files = ${nix-rage-package}/lib/libnix_rage.so
+              plugin-files = ${nix-rage-package}/lib/libnix_rage.so
             '';
           }
           #...
@@ -59,12 +59,13 @@ Nix Flake example:
   };
 }
 ```
+If installing through the flake, the system needs to be build at least once before usage.
 
 ## Build From Source
 
 Clone the repository and build nix-rage locally:
 
-```bash
+```sh
 git clone https://github.com/renesat/nix-rage.git
 cd nix-rage
 
@@ -82,14 +83,14 @@ First create secret config:
 `secret.nix`:
 ```nix
 {
-  mySecretEmail = "nagibator96@gmail.com"
+  mySecretEmail = "nagibator96@gmail.com";
   #...
 }
 ```
 
 Now we need to encrypt using `age`
 `secret.nix`:
-```bash
+```sh
 age --encrypt -r <AGE-KEY> secret.nix -o secret.nix.age
 ```
 
@@ -98,7 +99,7 @@ Now we can use this file in our config:
 ```nix
 {...}:
 let
-  secrets = builtins.importAge [ ./secret-key ] ./secret.nix.age {}
+  secrets = builtins.importAge [ ./secret-key ] ./secret.nix.age {};
 in {
   some.config.parameters.email = secrets.mySecretEmail;
 }
@@ -109,7 +110,7 @@ Also, you can read other files:
 ```nix
 {...}:
 let
-  secretConfig = builtins.readAgeFile [ ./secret-key ] ./secret.toml.age {}
+  secretConfig = builtins.readAgeFile [ ./secret-key ] ./secret.toml.age {};
 in {
   #...
 }
