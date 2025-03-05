@@ -40,8 +40,7 @@
           "rustc"
           "rustfmt"
         ];
-        craneLib =
-          (inputs.crane.mkLib pkgs).overrideToolchain toolchain;
+        craneLib = (inputs.crane.mkLib pkgs).overrideToolchain toolchain;
         commonArgs = {
           src = lib.cleanSourceWith {
             src = lib.cleanSource ./.;
@@ -134,27 +133,29 @@
         };
 
         devShells.default = craneLib.devShell {
-          packages = [
-            pkgs.bacon
-            pkgs.just
-            pkgs.cargo-watch
-            pkgs.nix-output-monitor
-            config.treefmt.build.wrapper
-            pkgs.git-cliff
-
-            # Deps
-            self'.packages.default.buildInputs
-            self'.packages.default.nativeBuildInputs
-          ];
+          packages =
+            [
+              pkgs.bacon
+              pkgs.just
+              pkgs.cargo-watch
+              pkgs.nix-output-monitor
+              config.treefmt.build.wrapper
+              pkgs.git-cliff
+            ]
+            ++ self'.packages.default.buildInputs
+            ++ self'.packages.default.nativeBuildInputs;
           shellHook = config.pre-commit.installationScript;
+          LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath self'.packages.default.buildInputs;
         };
 
         packages = {
-          nix-rage = craneLib.buildPackage (commonArgs
+          nix-rage = craneLib.buildPackage (
+            commonArgs
             // {
               inherit cargoArtifacts;
               doCheck = false;
-            });
+            }
+          );
           default = self'.packages.nix-rage;
         };
       };
