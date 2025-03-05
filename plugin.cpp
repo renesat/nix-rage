@@ -99,7 +99,7 @@ void prim_readAgeFile(EvalState &state, const PosIdx pos, Value **args,
 }
 
 static std::vector<RegisterPrimOp> primops = std::vector{
-    nix::RegisterPrimOp((nix::PrimOp){
+    nix::RegisterPrimOp(nix::PrimOp{
         .name = "importAge",
         .args = {"identities", "path", "configs"},
         .arity = 3,
@@ -107,7 +107,7 @@ static std::vector<RegisterPrimOp> primops = std::vector{
         .fun = prim_importAge,
         .experimentalFeature = {},
     }),
-    nix::RegisterPrimOp((nix::PrimOp){
+    nix::RegisterPrimOp(nix::PrimOp{
         .name = "readAgeFile",
         .args = {"identities", "path", "configs"},
         .arity = 3,
