@@ -1,11 +1,31 @@
 ---
 name: "Check"
 on:  # yamllint disable-line rule:truthy
-  pull_request:
   push:
+    branches: [main]
+  pull_request:
 jobs:
-  check:
+  build_x86_64-linux:
     runs-on: ubuntu-latest
+    name: Build on x86_64-linux
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v16
+        with:
+          extra-conf: "extra-platforms = aarch64-linux"
+      - name: Run the Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@v8
+      - name: Check Nix flake inputs
+        uses: DeterminateSystems/flake-checker-action@v9
+      - name: Build
+        run: nix build .#nix-rage --system x86_64-linux
+  check_x86_64-linux:
+    needs: build_x86_64-linux
+    runs-on: ubuntu-latest
+    name: Check on x86_64-linux
     steps:
       - uses: actions/checkout@v4
         with:
@@ -21,4 +41,4 @@ jobs:
       - name: Check Nix flake inputs
         uses: DeterminateSystems/flake-checker-action@v9
       - name: Check flake and pre-commit
-        run: nix flake check -v -L --all-systems
+        run: nix flake check -v -L --all-systems --system x86_64-linux
