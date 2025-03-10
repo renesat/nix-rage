@@ -1,16 +1,116 @@
 use age::{Decryptor, Identity, IdentityFile};
-use anyhow::Result;
-use sha256::digest;
+use anyhow::{anyhow, Result};
 use std::ffi::{CStr, CString};
-use std::fs;
+use std::fs::{self, DirBuilder};
 use std::io::{Read, Write};
-use std::os::{
-    raw::c_char,
-    unix::fs::{OpenOptionsExt, PermissionsExt},
-};
-use std::path::Path;
+use std::os::unix::fs::DirBuilderExt;
+use std::os::{raw::c_char, unix::fs::OpenOptionsExt};
+use std::path::{Path, PathBuf};
 use std::ptr;
 use users::get_current_uid;
+
+trait SecretCache {
+    fn create(&self, path: &Path, content: &str) -> Result<()>;
+
+    fn load(&self, path: &Path) -> Result<Option<String>>;
+
+    fn load_or(&self, path: &Path, f: &dyn Fn(&Path) -> Result<String>) -> Result<String> {
+        match self.load(path)? {
+            Some(content) => Ok(content),
+            None => {
+                let content = f(path)?;
+                self.create(path, &content)?;
+                Ok(content)
+            }
+        }
+    }
+}
+
+struct NullCache;
+
+impl SecretCache for NullCache {
+    fn create(&self, _path: &Path, _content: &str) -> Result<()> {
+        Ok(())
+    }
+
+    fn load(&self, _path: &Path) -> Result<Option<String>> {
+        Ok(None)
+    }
+}
+
+struct TempCache {
+    dir: PathBuf,
+}
+
+impl TempCache {
+    fn get_identity(&self, path: &Path) -> Result<String> {
+        path.to_str()
+            .map(sha256::digest)
+            .ok_or(anyhow!("Incorrect path!"))
+    }
+
+    fn get_base_cache_path(&self) -> std::path::PathBuf {
+        let mut cache_path = self.dir.clone();
+        cache_path.push("nix-rage-cache");
+        cache_path
+    }
+
+    fn get_user_cache_path(&self) -> std::path::PathBuf {
+        let mut cache_path = self.get_base_cache_path();
+        cache_path.push(get_current_uid().to_string());
+        cache_path
+    }
+
+    fn gen_cache_path(&self, path: &Path) -> Result<std::path::PathBuf> {
+        let identity = self.get_identity(path)?;
+        let file_name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .ok_or(anyhow!("Incorrect path!"))?;
+        let mut cache_path = self.get_user_cache_path();
+        cache_path.push(format!("{identity}-{file_name}"));
+        Ok(cache_path)
+    }
+}
+
+impl Default for TempCache {
+    fn default() -> Self {
+        Self {
+            dir: tempfile::env::temp_dir(),
+        }
+    }
+}
+
+impl SecretCache for TempCache {
+    fn create(&self, path: &Path, content: &str) -> Result<()> {
+        let cache_path = self.gen_cache_path(path)?;
+        let base_cache_path = self.get_base_cache_path();
+        if !fs::exists(&base_cache_path)? {
+            DirBuilder::new().mode(0o222).create(&base_cache_path)?;
+        }
+        let user_cache_path = self.get_user_cache_path();
+        if !fs::exists(&user_cache_path)? {
+            DirBuilder::new().mode(0o700).create(&user_cache_path)?;
+        }
+        let mut output = fs::OpenOptions::new()
+            .truncate(true)
+            .create(true)
+            .write(true)
+            .mode(0o700)
+            .open(cache_path)?;
+        write!(output, "{}", content)?;
+        Ok(())
+    }
+
+    fn load(&self, path: &Path) -> Result<Option<String>> {
+        let user_cache_path = self.gen_cache_path(path)?;
+        Ok(if fs::exists(&user_cache_path)? {
+            Some(fs::read_to_string(&user_cache_path)?)
+        } else {
+            None
+        })
+    }
+}
 
 fn decrypt_file<'a>(
     identities: impl Iterator<Item = &'a dyn Identity>,
@@ -24,59 +124,6 @@ fn decrypt_file<'a>(
     Ok(content)
 }
 
-fn get_base_cache_path() -> std::path::PathBuf {
-    let mut cache_path = tempfile::env::temp_dir();
-    cache_path.push("nix-rage-cache");
-    cache_path
-}
-
-fn get_user_cache_path() -> std::path::PathBuf {
-    let mut cache_path = get_base_cache_path();
-    cache_path.push(get_current_uid().to_string());
-    cache_path
-}
-
-fn gen_cache_path(path: &Path) -> std::path::PathBuf {
-    let cache_filename = path
-        .to_str()
-        .map(digest)
-        .and_then(|f| {
-            path.file_name()
-                .and_then(|n| n.to_str())
-                .map(|n| format!("{f}-{n}"))
-        })
-        .expect("Incorrect file path!");
-    let mut cache_path = get_user_cache_path();
-    cache_path.push(cache_filename);
-    cache_path
-}
-
-fn create_cache(path: &Path, content: &str) -> Result<()> {
-    let cache_path = gen_cache_path(path);
-    let base_cache_path = get_base_cache_path();
-    if !fs::exists(&base_cache_path)? {
-        fs::create_dir_all(&base_cache_path)?;
-        let mut perms = fs::metadata(&base_cache_path)?.permissions();
-        perms.set_mode(0o777);
-        fs::set_permissions(&base_cache_path, perms)?;
-    }
-    let user_cache_path = get_user_cache_path();
-    if !fs::exists(&user_cache_path)? {
-        fs::create_dir_all(&user_cache_path)?;
-        let mut perms = fs::metadata(&user_cache_path)?.permissions();
-        perms.set_mode(0o700);
-        fs::set_permissions(&user_cache_path, perms)?;
-    }
-    let mut output = fs::OpenOptions::new()
-        .truncate(true)
-        .create(true)
-        .write(true)
-        .mode(0o700)
-        .open(cache_path)?;
-    write!(output, "{}", content)?;
-    Ok(())
-}
-
 fn _nix_rage_decrypt(identities: Vec<&str>, filename: &str, cache: bool) -> Result<String> {
     let identities = identities
         .into_iter()
@@ -85,17 +132,14 @@ fn _nix_rage_decrypt(identities: Vec<&str>, filename: &str, cache: bool) -> Resu
         .flat_map(IdentityFile::into_identities)
         .flatten()
         .collect::<Vec<_>>();
-    let filename = Path::new(filename);
-    if cache {
-        let user_cache_path = gen_cache_path(filename);
-        if fs::exists(&user_cache_path)? {
-            return Ok(fs::read_to_string(&user_cache_path)?);
-        }
-    }
-    let content = decrypt_file(identities.iter().map(|b| &**b), filename)?;
-    if cache {
-        create_cache(filename, &content)?;
-    }
+    let cache: Box<dyn SecretCache> = if cache {
+        Box::new(TempCache::default())
+    } else {
+        Box::new(NullCache)
+    };
+    let content = cache.load_or(Path::new(filename), &|path| {
+        decrypt_file(identities.iter().map(|b| &**b), path)
+    })?;
     Ok(content)
 }
 
