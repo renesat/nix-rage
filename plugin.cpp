@@ -1,7 +1,7 @@
 /* #include <config.h> */
-#include <eval.hh>
+#include <nix/expr/eval.hh>
 #include <format>
-#include <primops.hh>
+#include <nix/expr/primops.hh>
 #include <vector>
 
 using namespace nix;
