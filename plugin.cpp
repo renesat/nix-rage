@@ -1,7 +1,21 @@
-/* #include <config.h> */
+#define VERSION_ENCODE(major, minor, patch)                                    \
+  ((major) * 10000 + (minor) * 100 + (patch))
+#define NIX_VERSION_NUM                                                        \
+  VERSION_ENCODE(NIX_MAJOR_VERSION, NIX_MINOR_VERSION, NIX_PATCH_VERSION)
+#define NIX_VERSION_LE(major, minor, patch)                                    \
+  (NIX_VERSION_NUM <= VERSION_ENCODE(major, minor, patch))
+#define NIX_VERSION_GE(major, minor, patch)                                    \
+  (NIX_VERSION_NUM >= VERSION_ENCODE(major, minor, patch))
+
+#if NIX_VERSION_LE(2, 24, 99)
 #include <eval.hh>
-#include <format>
 #include <primops.hh>
+#else
+#include <nix/expr/eval.hh>
+#include <nix/expr/primops.hh>
+#endif
+
+#include <format>
 #include <vector>
 
 using namespace nix;
@@ -28,11 +42,21 @@ char *decrypt_content(EvalState &state, const PosIdx pos, Value **args) {
         .atPos(pos)
         .debugThrow();
   }
-  auto filename = const_cast<const char *>(args[1]->payload.path.path);
+  auto filename = const_cast<const char *>(
+#if NIX_VERSION_GE(2, 30, 00)
+      args[1]->pathStr()
+#else
+      args[1]->payload.path.path
+#endif
+  );
 
   std::vector<const char *> identities;
   identities.reserve(args[0]->listSize());
+#if NIX_VERSION_GE(2, 30, 00)
+  for (auto elem : args[0]->listView()) {
+#else
   for (auto elem : args[0]->listItems()) {
+#endif
     state.forceValue(*elem, pos);
     if (elem->type() != nPath) {
       state
@@ -41,7 +65,11 @@ char *decrypt_content(EvalState &state, const PosIdx pos, Value **args) {
           .atPos(pos)
           .debugThrow();
     }
+#if NIX_VERSION_GE(2, 30, 00)
+    auto path = elem->pathStr();
+#else
     auto path = elem->payload.path.path;
+#endif
     identities.push_back(const_cast<const char *>(path));
   }
 
