@@ -41,19 +41,25 @@
           "rustfmt"
         ];
         craneLib = (inputs.crane.mkLib pkgs).overrideToolchain toolchain;
-        commonArgs = {
+        nix_pkgs = lib.filterAttrs (nix_version: nix_pkg:
+          (lib.elem nix_version ["git" "latest" "minimum" "stable" "unstable"]
+            || lib.hasPrefix "nix_" nix_version)
+          && (builtins.tryEval nix_pkg).success
+          && builtins.compareVersions nix_pkg.version "2.24" >= 0)
+        pkgs.nixVersions;
+        commonArgs = nix_pkg: {
           src = lib.cleanSourceWith {
             src = lib.cleanSource ./.;
             filter = name: type: (craneLib.filterCargoSources name type) || (lib.hasSuffix ".cpp" name);
           };
           nativeBuildInputs = [pkgs.pkg-config];
           buildInputs = [
-            pkgs.nix
+            nix_pkg
             pkgs.boost
           ];
           strictDeps = true;
         };
-        cargoArtifacts = craneLib.buildDepsOnly commonArgs;
+        cargoArtifacts = nix_pkg: craneLib.buildDepsOnly (commonArgs nix_pkg);
       in {
         _module.args.pkgs = import inputs.nixpkgs {
           inherit system;
@@ -130,38 +136,48 @@
           };
         };
 
-        checks = {
-          testPlugin = pkgs.testers.runNixOSTest {
-            name = "testPlugin";
-            nodes.machine1 = {
-              nix.extraOptions = ''
-                plugin-files = ${self'.packages.default}/lib/libnix_rage.so
-                experimental-features = nix-command
-              '';
-            };
-            testScript = ''
-              machine1.start()
-              print("Generate key...")
-              machine1.execute("${pkgs.age}/bin/age-keygen -o /tmp/key")
+        checks =
+          lib.concatMapAttrs (
+            nix_version: nix_pkg: let
+              pkgs = import inputs.nixpkgs {
+                inherit system;
+                overlays = [(_final: _prev: {nix = nix_pkg;})];
+              };
+            in {
+              "testPlugin-nix-${nix_version}" = pkgs.testers.runNixOSTest {
+                name = "testPlugin-nix-${nix_version}";
+                nodes.machine1 = {
+                  nix.package = nix_pkg;
+                  nix.extraOptions = ''
+                    plugin-files = ${self'.packages."nix-rage-nix-${nix_version}"}/lib/libnix_rage.so
+                    experimental-features = nix-command
+                  '';
+                };
+                testScript = ''
+                  machine1.start()
+                  print("Generate key...")
+                  machine1.execute("${pkgs.age}/bin/age-keygen -o /tmp/key")
 
-              print("Test `importAge`...")
-              machine1.execute(
-                "echo '{ a = \"SECRET\";}' | ${pkgs.age}/bin/age -e -i /tmp/key > /tmp/data.age"
-              )
-              assert machine1.execute(
-                "nix eval --raw --expr '(builtins.importAge [ /tmp/key ] /tmp/data.age {cache=false;}).a'"
-              )[1] == "SECRET", "Import file error"
+                  print("Test `importAge`...")
+                  machine1.execute(
+                    "echo '{ a = \"SECRET\";}' | ${pkgs.age}/bin/age -e -i /tmp/key > /tmp/data.age"
+                  )
+                  assert machine1.execute(
+                    "nix eval --raw --expr '(builtins.importAge [ /tmp/key ] /tmp/data.age {cache=false;}).a'"
+                  )[1] == "SECRET", "Import file error"
 
-              print("Test `readAgeFile`...")
-              machine1.execute(
-                "echo 'SECRET' | ${pkgs.age}/bin/age -e -i /tmp/key > /tmp/data.age"
-              )
-              assert machine1.execute(
-                "nix eval --raw --expr 'builtins.readAgeFile [ /tmp/key ] /tmp/data.age {cache=false;}'"
-              )[1].strip() == "SECRET", "Read file error"
-            '';
-          };
-        };
+                  print("Test `readAgeFile`...")
+                  machine1.execute(
+                    "echo 'SECRET' | ${pkgs.age}/bin/age -e -i /tmp/key > /tmp/data.age"
+                  )
+                  assert machine1.execute(
+                    "nix eval --raw --expr 'builtins.readAgeFile [ /tmp/key ] /tmp/data.age {cache=false;}'"
+                  )[1].strip() == "SECRET", "Read file error"
+                '';
+              };
+            }
+          )
+          nix_pkgs;
 
         devShells.default = craneLib.devShell {
           packages =
@@ -179,16 +195,24 @@
           LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath self'.packages.default.buildInputs;
         };
 
-        packages = {
-          nix-rage = craneLib.buildPackage (
-            commonArgs
-            // {
-              inherit cargoArtifacts;
-              doCheck = false;
-            }
-          );
-          default = self'.packages.nix-rage;
-        };
+        packages = let
+          nix-rage = nix_pkg:
+            craneLib.buildPackage (
+              (commonArgs nix_pkg)
+              // {
+                cargoArtifacts = cargoArtifacts nix_pkg;
+                doCheck = false;
+              }
+            );
+        in
+          lib.concatMapAttrs (nix_version: nix_pkg: {
+            "nix-rage-nix-${nix_version}" = nix-rage nix_pkg;
+          })
+          nix_pkgs
+          // {
+            nix-rage = self'.packages.nix-rage-nix-stable;
+            default = self'.packages.nix-rage;
+          };
       };
     };
 }
