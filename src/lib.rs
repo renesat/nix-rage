@@ -1,5 +1,5 @@
 use age::{Decryptor, Identity, IdentityFile};
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use std::ffi::{CStr, CString};
 use std::fs::{self, DirBuilder};
 use std::io::{Read, Write};
