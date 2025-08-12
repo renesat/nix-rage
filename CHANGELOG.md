@@ -2,6 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0] - 2025-08-12
+
+Release v0.2.0
+
+### 🚀 Features
+
+- Caching of decrypted files
+
+### 🐛 Bug Fixes
+
+- Compilation with clang
+- Support multiple nix versions
+
+### ⚙️ Miscellaneous Tasks
+
+- Cache logic
+- Refactor flake.nix
+- Example of usage
+- Linters and pre-commit
+- Add zizmor into pre-commit
+- Add readme and repository to Cargo.toml
+- Move from naersk to crane build
+- Flake update
+- Add integration test
+- Fix multiple trigger
+- Flake update
+- Fix format
+- Checks for multiple nix versions
+- Update cargo lock
+
 ## [0.1.0] - 2025-01-07
 
 First release!
