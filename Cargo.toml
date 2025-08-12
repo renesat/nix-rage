@@ -1,6 +1,6 @@
 [package]
 name = "nix-rage"
-version = "0.1.0"
+version = "0.1.1"
 description = "Hide personal data with Nix"
 edition = "2021"
 license = "MIT"
